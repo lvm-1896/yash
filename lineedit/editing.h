@@ -228,7 +228,8 @@ extern le_command_func_T
     cmd_search_again_forward, /*C*/
     cmd_search_again_backward, /*C*/
     cmd_beginning_search_forward, /*C*/
-    cmd_beginning_search_backward; /*C*/
+    cmd_beginning_search_backward, /*C*/
+    cmd_emacs_append_last_bigword; /*C*/
 
 
 #endif /* YASH_EDITING_H */

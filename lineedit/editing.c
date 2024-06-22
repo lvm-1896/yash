@@ -2812,6 +2812,71 @@ fail:
     return;
 }
 
+/* Appends a space followed by the last bigword from the newest history entry.
+ * If the count is specified, the `count'th word is appended.
+ * The mode is changed to vi-insert. */
+void cmd_emacs_append_last_bigword(wchar_t c __attribute__((unused)))
+{
+    ALERT_AND_RETURN_IF_PENDING;
+    save_current_edit_command();
+    maybe_save_undo_history();
+
+    wchar_t *lastcmd = NULL;
+    int count = get_count(-1);
+    if (count == 0 || histlist.count == 0)
+	goto fail;
+
+    struct xwcsrange range;
+    lastcmd = malloc_mbstowcs(ashistentry(histlist.Newest)->value);
+    if (lastcmd == NULL)
+	goto fail;
+    if (count >= 0) {
+	/* find the count'th word */
+	range.start = range.end = lastcmd;
+	do {
+	    struct xwcsrange r = get_next_bigword(range.end);
+	    if (r.start == r.end)
+		break;
+	    range = r;
+	} while (--count > 0 && *range.end != L'\0');
+    } else {
+	/* find the count'th last word */
+	range.start = range.end = lastcmd + wcslen(lastcmd);
+	do {
+	    struct xwcsrange r = get_prev_bigword(lastcmd, range.start);
+	    if (r.start == r.end)
+		break;
+	    range = r;
+	} while (++count < 0 && lastcmd < range.start);
+    }
+    assert(range.start <= range.end);
+    if (range.start == range.end)
+	goto fail;
+
+    clear_prediction();
+    if (le_main_index < le_main_buffer.length)
+	le_main_index++;
+    size_t len = range.end - range.start;
+    /* insert space unless already present or on bol */
+    if (le_main_index > 0) {
+        wchar_t c = le_main_buffer.contents[le_main_index-1];
+        if (c != L' ') {
+            wb_ninsert_force(&le_main_buffer, le_main_index, L" ", 1);
+            le_main_index += 1;
+        }
+    }
+    wb_ninsert_force(&le_main_buffer, le_main_index, range.start, len);
+    le_main_index += len;
+    free(lastcmd);
+    // cmd_setmode_viinsert(L'\0');
+    return;
+
+fail:
+    free(lastcmd);
+    cmd_alert(L'\0');
+    return;
+}
+
 struct xwcsrange get_next_bigword(const wchar_t *s)
 {
     struct xwcsrange result;
